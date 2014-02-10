@@ -1,0 +1,25 @@
+
+<script>
+
+var pelo = {
+    pos: {x:0, y:0},
+    dir1: {x:100, y :50},
+    dir2: {x:110, y:20},
+    color: "rgb(1250,100,15)",
+    width: 5
+}
+
+window.onload = function(){
+    var context = document.getElementById("canvas").getContext("2d");
+    context.strokeStyle = pelo.color;
+    context.lineWidth = pelo.width;
+    context.beginPath();
+    context.moveTo(pelo.pos.x, pelo.pos.y);
+    context.quadraticCurveTo(pelo.pos.x + pelo.dir1.x, pelo.pos.y + pelo.dir1.y,
+            pelo.pos.x + pelo.dir2.x, pelo.pos.y +pelo.dir2.y);
+    context.stroke();
+}
+
+</script>
+<canvas id="canvas" width=600 height=400>
+</canvas>

@@ -1,0 +1,220 @@
+<head>
+<title>Simple muuAct platformer</title>
+<script src="stats.min.js"></script>
+<script src="muu2dbase.js"></script>
+<script src="muu2dshapes.js"></script>
+<script src="libs/Box2dWeb-2.1.a.3.min.js"></script>
+<script src="muu2dBox.js"></script>
+</head>
+
+<body>
+<canvas id="fondo" width=800 height=600 style="position:absolute">
+</canvas>
+<canvas id="canvas" width=800 height=600 style="position:absolute">
+</canvas>
+
+<script>
+v2.prototype.normAndSave = function(obj){
+    obj.len = this.len();
+    return v2.scalar(1/obj.len, this);
+}
+function Fluzzy(color){
+    this.hairs = []; this.color = color;
+    for(var i=0; i<25; i++){
+         // Circunference with 102-2*(i+1)%50 hairs
+           pos = new v2(Math.cos(i/25*6.28),
+                        Math.sin(i/25*6.28))
+                        // radius of the circunference
+                        .scalar(25);
+        this.hairs.push({d1:new v2(0,0),d2:new v2,w:Math.random()*2+1, pos:pos,length:15+Math.random()*4})
+   }
+    for(var i=0; i<25; i++){
+         // Circunference with 102-2*(i+1)%50 hairs
+           pos = new v2(Math.cos(i/25*6.28+3.14),
+                        Math.sin(i/25*6.28+3.14)-.1)
+                        // radius of the circunference
+                        .scalar(25);
+        this.hairs.push({d1:new v2(0,0),d2:new v2,w:Math.random()*2+1, pos:pos,length:15+Math.random()*4})
+   }
+
+}
+Fluzzy.prototype = new muuNode();
+Fluzzy.prototype.constructor = Fluzzy;
+
+Fluzzy.prototype.step = function(physics){
+    var r = this.rotation(), c = Math.cos(r), s = Math.sin(r),
+    v = this.physics().m_linearVelocity, av = this.physics().m_angularVelocity,
+    lastlen={};
+    for(var i=0; i<this.hairs.length; i++){
+      var p = this.hairs[i].pos;
+      this.hairs[i].d1 = new v2(v.x*c + v.y*s,
+                               v.y*c - v.x*s).norm().scalar(50)
+                      // .addEventListenerd(new v2(this.hairs[i].pos.y, -this.hairs[i].pos.x).
+                       //  scalar(Math.max(.0,this.physics().m_angularVelocity)-this.hairs[i].lav))
+                       .add(v2.norm(p).scalar(1.01))
+                       .add(new v2(p.y, -p.x).scalar(av*100))
+                       //.scalar(1/Math.sqrt(5))
+                       .norm()
+                       .scalar(this.hairs[i].length*.3)
+                       .add(this.hairs[i].d1.scalar(0.7))
+    this.hairs[i].d2 = new v2(v.x*c + v.y*s,
+                               v.y*c - v.x*s).norm().scalar(-2)
+                      // .addEventListenerd(new v2(this.hairs[i].pos.y, -this.hairs[i].pos.x).
+                       //  scalar(Math.max(.0,this.physics().m_angularVelocity)-this.hairs[i].lav))
+                       .add(v2.norm(p).scalar(2.1))
+                       .add(new v2(p.y, -p.x).scalar(av*100))
+                       .normAndSave(lastlen)//.scalar(1/Math.sqrt(5))
+                       .scalar(this.hairs[i].length*.1)
+                       .add(this.hairs[i].d2.norm().scalar(0.9))
+            //           .scalar(Math.sqrt(lastlen.len))
+
+    }
+}
+
+
+Fluzzy.prototype.paintTo = function(context){
+      context.translate(this.getPos().x, this.getPos().y);
+      context.rotate(this.rotation());
+      context.scale(this.scale(), this.scale());
+      context.beginPath();
+      context.arc(0,0,30,0,6.2830, false);
+      context.fillStyle= this.color;
+      context.fill();
+      context.strokeStyle = this.color;
+    var r = this.rotation(), c= Math.cos(r), s=Math.sin(r);
+    for(var i=0; i<this.hairs.length; i++){
+      var pos = this.hairs[i].pos, color = this.hairs[i].color,
+        dir1 = this.hairs[i].d1, dir2 = this.hairs[i].d2;
+      context.lineWidth = this.hairs[i].w;
+      context.beginPath();
+      context.moveTo(pos.x, pos.y);
+     // context.lineTo(pos.x+len*dir.x, pos.y+len*dir.y);
+      context.quadraticCurveTo(dir1.x, dir1.y, pos.x + dir2.x, pos.y +dir2.y);
+      //context.strokeStyle = this.hairs[i].color;
+      context.stroke();
+    }
+
+    context.fillStyle="rgb(255,255,255)";
+    context.strokeStyle = "rgb(50, 50, 0)";
+    context.beginPath();
+    context.arc(-10,-15,5,0,6.2830, false);
+    context.fill();
+    context.stroke();
+    context.beginPath();
+    context.arc(12,-15,10,0,6.2830, false);
+    context.fill();
+    context.stroke();
+    context.scale(1/this.scale(), 1/this.scale());
+    context.rotate(-this.rotation());
+    context.translate(-this.getPos().x, -this.getPos().y)
+}
+
+Fluzzy.prototype._defShape = function(){return new b2CircleShape(30)};
+</script>
+
+<script>
+(function(){
+var requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame ||
+    window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
+window.requestAnimationFrame = requestAnimationFrame;
+})();
+
+resize = 1, world = new b2World(new b2Vec2(0,0.000001), false);
+var left = right = up = contact = false, me, fluzzies = [];
+document.addEventListener("keydown", function(key){
+  var lor = new v2(1,1), ror = new v2(-1,1);
+    switch(key.which){
+      case 37: //Left
+          if(!(left || right || up)) left = true; break;
+      case 38: //UP
+          if(!(left || right || up)) up = true;  break;
+      case 39: // Right
+          if(!(left || right || up)) right = true; break;
+  }
+});
+document.addEventListener("keyup", function(key){
+  switch(key.which){
+      case 37: //Left
+          left = false; 
+          break;
+      case 38: //UP
+          up = false;
+          break;
+      case 39: // Right
+          right = false;
+          break;
+  }
+});
+
+window.onload = function(){
+	//muu.addAtlas("atlas.png", "atlas.js");
+	var layer = muu.addCanvas("canvas", true);
+    var fondo = muu.addCanvas("fondo", false);
+    var stats = new Stats
+    stats = new Stats();
+    document.body.appendChild( stats.domElement );
+    fondo.add(new Rect(800,600).fill("rgb(100, 200, 255)").moveTo(400,300));
+    var floor1 = new Rect(200,10).fill("rgb(100,250,200)").moveTo(120, 505).physics()
+    floor1.physics().SetType(b2Body.b2_staticBody);
+    fondo.add(floor1)
+    var floor2 = new Rect(500,10).fill("rgb(100,250,200)").moveTo(450, 475).physics()
+    floor2.physics().SetType(b2Body.b2_staticBody);
+    fondo.add(floor2)
+    layer.add(new Circle(50).moveTo(450,100).physics() )
+    var label = new Label("1").moveTo(300,10).stroke("rgba(255,255,255,0)");
+    layer.add(label);
+
+    var fixture = new b2FixtureDef;
+    fixture.density = 1;
+    fixture.restitution = 1;
+    fixture.friction = 0.5;
+    fixture.shape = new b2CircleShape(30);
+    me = new Fluzzy("rgb(125,100,15)").physics();
+    me.physics().SetUserData({"me":true})
+	layer.add(me);
+
+    world.SetContactListener({BeginContact:function(cont){
+      var userData = cont.GetFixtureA().GetBody().GetUserData();
+      if(userData) if(userData.me) contact = true;
+      userData = cont.GetFixtureB().GetBody().GetUserData();
+      if(userData) if(userData.me) contact = true;
+
+    }, EndContact:function(cont){
+      var userData = cont.GetFixtureA().GetBody().GetUserData();
+      if(userData) if(userData.me) contact = false;
+      userData = cont.GetFixtureB().GetBody().GetUserData();
+      if(userData) if(userData.me) contact = false;
+
+    }, PreSolve:function(){}, PostSolve:function(){}})
+    var lt, nt = 1000; // Last time
+    function render(t){
+      var dt = lt ? t -lt : t;
+      lt = t;
+      if(contact && up)
+          me.physics().m_linearVelocity.y = -0.015; //ApplyImpulse(new b2Vec2(0, -0.005), me.getPos());
+      if(right)  me.physics().m_linearVelocity.x = 0.005
+      else if(left) me.physics().m_linearVelocity.x = -0.005
+      
+      for (var i=0; i<dt/100; i++){
+        world.Step(100, 10, 10);
+      //  world.ClearForces();
+      }
+if(t > nt){
+var f = new Fluzzy("rgb(125,100,15)").moveTo(500,100).physics();
+layer.add(f);
+fluzzies.push(f)
+label.text(""+(1+fluzzies.length));
+nt += 5000;
+}
+for(var i=0; i<fluzzies.length; i++)
+  fluzzies[i].step();
+      me.step(i);
+      muu.render();
+    stats.update();
+      requestAnimationFrame(render);
+    }
+    requestAnimationFrame(render);
+    fondo.render();
+}
+</script>
+</body>

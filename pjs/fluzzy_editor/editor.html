@@ -1,0 +1,282 @@
+<head>
+<title>Simple muuAct platformer</title>
+<script src="stats.min.js"></script>
+<script src="dat.color.js"></script>
+<script src="dat.gui.min.js"></script>
+<script src="muu2dbase.js"></script>
+<script src="muu2dshapes.js"></script>
+<script src="libs/Box2dWeb-2.1.a.3.min.js"></script>
+<script src="muu2dBox.js"></script>
+</head>
+
+<body>
+<canvas id="fondo" width=800 height=600 style="position:absolute">
+</canvas>
+<canvas id="canvas" width=800 height=600 style="position:absolute">
+</canvas>
+
+<script>
+var b2AddV2V2 = Box2D.Common.Math.b2Math.AddVV;
+v2.prototype.normAndSave = function(obj){
+    obj.len = this.len();
+    return v2.scalar(1/obj.len, this);
+}
+function Fluzzy(config){
+    this.hairs = [];
+    this.color = config.color,
+    this.body = muu.getSprite(config.body),
+    this.eyes = muu.getSprite(config.eyes+"opened"),
+    this.mouth = muu.getSprite(config.mouth+"closed");
+    this.size = config.size, this.eyessize = config.eyessize, this.mouthsize = config.mouthsize,
+    this.eyesposx = config.eyesposx, this.eyesposy = config.eyesposy,
+    this.mouthposx = config.mouthposx, this.mouthposy = config.mouthposy;
+    var hairs = config.hairs;
+    for(var j=0; j<hairs.length; j++){
+        var h = hairs[j];
+        for(var i=0; i<h.hairs; i++){
+             // Circunference with 102-2*(i+1)%50 hairs
+               pos = new v2(Math.cos(i/h.hairs*6.28)+h.displx,
+                            Math.sin(i/h.hairs*6.28)+h.disply)
+                            // radius of the circunference
+                            .scalar(h.radius);
+            this.hairs.push({d1:new v2(0,0),d2:new v2,w:Math.random()*h.randomwidth+h.basewidth, pos:pos,length:h.baselength+Math.random()*h.randomlength})
+        }
+    }
+}
+Fluzzy.prototype = new muuNode();
+Fluzzy.prototype.constructor = Fluzzy;
+
+Fluzzy.prototype.step = function(physics){
+    var r = this.rotation(), c = Math.cos(r), s = Math.sin(r),
+    v = this.physics().m_linearVelocity, av = this.physics().m_angularVelocity,
+    lastlen={};
+    for(var i=0; i<this.hairs.length; i++){
+      var p = this.hairs[i].pos;
+      this.hairs[i].d1 = new v2(v.x*c + v.y*s,
+                               v.y*c - v.x*s).norm().scalar(50)
+                      // .addEventListenerd(new v2(this.hairs[i].pos.y, -this.hairs[i].pos.x).
+                       //  scalar(Math.max(.0,this.physics().m_angularVelocity)-this.hairs[i].lav))
+                       .add(v2.norm(p).scalar(2.1))
+                       .add(new v2(p.y, -p.x).scalar(av*100))
+                       //.scalar(1/Math.sqrt(5))
+                       .norm()
+                       .scalar(this.hairs[i].length*.3)
+                       .add(this.hairs[i].d1.scalar(0.7))
+    this.hairs[i].d2 = new v2(v.x*c + v.y*s,
+                               v.y*c - v.x*s).norm().scalar(-2)
+                      // .addEventListenerd(new v2(this.hairs[i].pos.y, -this.hairs[i].pos.x).
+                       //  scalar(Math.max(.0,this.physics().m_angularVelocity)-this.hairs[i].lav))
+                       .add(v2.norm(p).scalar(2.1))
+                       .add(new v2(p.y, -p.x).scalar(av*100))
+                       .norm()//.scalar(1/Math.sqrt(5))
+                       .scalar(this.hairs[i].length).scalar(0.1)
+                       .add(this.hairs[i].d2.scalar(0.9))
+            //           .scalar(Math.sqrt(lastlen.len))
+
+    }
+}
+
+
+Fluzzy.prototype.paintTo = function(context){
+      context.translate(this.getPos().x, this.getPos().y);
+      context.rotate(this.rotation());
+      context.scale(this.scale(), this.scale());
+
+      context.translate(-this.size/2, -this.size/2)
+      this.body.paintTo(context, new v2(this.size, this.size));
+      context.translate(this.size/2, this.size/2)
+
+      context.strokeStyle = this.color;
+    var r = this.rotation(), c= Math.cos(r), s=Math.sin(r);
+    for(var i=0; i<this.hairs.length; i++){
+      var pos = this.hairs[i].pos, color = this.hairs[i].color,
+        dir1 = this.hairs[i].d1, dir2 = this.hairs[i].d2;
+      context.lineWidth = this.hairs[i].w;
+      context.beginPath();
+      context.moveTo(pos.x, pos.y);
+     // context.lineTo(pos.x+len*dir.x, pos.y+len*dir.y);
+      context.quadraticCurveTo(pos.x + dir1.x, pos.y + dir1.y, pos.x+dir2.x,pos.y+dir2.y);
+      //context.strokeStyle = this.hairs[i].color;
+      context.stroke();
+    }
+
+    context.translate(this.eyesposx, this.eyesposy);
+    this.eyes.paintTo(context, {x:this.eyessize*this.eyes.size.x, y:this.eyessize*this.eyes.size.y});
+    context.translate(this.mouthposx-this.eyesposx, this.mouthposy-this.eyesposy)
+    this.mouth.paintTo(context, {x:this.mouthsize* this.mouth.size.x, y:this.mouthsize*this.mouth.size.y});
+    context.translate(-this.mouthposx, -this.mouthposy)
+    context.scale(1/this.scale(), 1/this.scale());
+    context.rotate(-this.rotation());
+    context.translate(-this.getPos().x, -this.getPos().y)
+}
+
+Fluzzy.prototype._defShape = function(){return new b2CircleShape(30)};
+</script>
+
+<script>
+(function(){
+var requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame ||
+    window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
+window.requestAnimationFrame = requestAnimationFrame;
+})();
+
+resize = 1, world = new b2World(new b2Vec2(0,0), false), testmode = false;
+var me, fluzzies = [], left = right = up = contact = false;
+
+document.addEventListener("keydown", function(key){
+    switch(key.which){
+      case 37: //Left
+          if(!(left || right || up)) left = true; break;
+      case 38: //UP
+          if(!(left || right || up)) up = true;  break;
+      case 39: // Right
+          if(!(left || right || up)) right = true; break;
+  }
+});
+document.addEventListener("keyup", function(key){
+  switch(key.which){
+      case 37: //Left
+          left = false, me.physics().m_torque = 0;
+          break;
+      case 38: //UP
+          up = false;
+          break;
+      case 39: // Right
+          right = false, me.physics().m_torque = 0;
+          break;
+  }
+});
+
+window.onload = function(){
+    //muu.addAtlas("atlas.png", "atlas.js");
+    var layer = muu.addCanvas("canvas", true);
+    var fondo = muu.addCanvas("fondo", false);
+    muu.addAtlas("atlas.png", "atlas.json");
+    muu.addAtlas("Metal Fluzzies.png", "Metal Fluzzies.1.js");
+    var stats = new Stats();
+    document.body.appendChild( stats.domElement );
+    var FluzzyModel = function(){
+        this.hairs = 50,
+        this.displx = 0,
+        this.disply = 0,
+        this.radius = 30,
+        this.basewidth = 2,
+        this.randomwidth = 1,
+        this.baselength = 10,
+        this.randomlength = 5,
+        this.color = "#cab568"
+        this.body = "pelusanonebody";
+        this.eyes = "pelusakawaiieyes";
+        this.mouth = "pelusanonemouth";
+        this.size = 60;
+        this.eyessize = 0.65;
+        this.mouthsize = 0.21;
+        this.eyesposx = -11, this.eyesposy = -15, this.mouthposx = -1, this.mouthposy = 12;
+        this.addhairs = addHairs;
+        this.test = function(){
+            testmode = testmode? false : true;
+            if(testmode)
+                world.SetGravity(new b2Vec2(0,.000075));
+            else
+                world.SetGravity(new b2Vec2(0,0));
+        }
+        this.download = function(){
+            window.location.href = "data:application/octet-stream,"+ JSON.stringify(layers);
+        }
+    }
+    var pfm = new FluzzyModel();
+    var layers = [];
+    var gui = new dat.GUI();
+    var controlers = [];
+    controlers.push(gui.add(pfm, "color"));
+    gui.add(pfm, "body")
+    gui.add(pfm, "eyes")
+    gui.add(pfm, "mouth")
+    controlers.push(gui.add(pfm, "size"))
+    controlers.push(gui.add(pfm, "eyessize"))
+    controlers.push(gui.add(pfm, "mouthsize"))
+    controlers.push(gui.add(pfm, "eyesposx"))
+    controlers.push(gui.add(pfm, "eyesposy"))
+    controlers.push(gui.add(pfm, "mouthposx"))
+    controlers.push(gui.add(pfm, "mouthposy"))
+    gui.add(pfm, "test");
+    gui.add(pfm, "download")
+    gui.add(pfm, "addhairs")
+
+    function addHairs(){
+        var fm = new FluzzyModel();
+        layers.push(fm);
+        gui.addFolder("Hairs"+layers.length)
+        controlers.push(gui.add(fm, "hairs").min(0).step(5));
+        controlers.push(gui.add(fm, "displx", -10, 10))
+        controlers.push(gui.add(fm, "disply", -10, 10))
+        controlers.push(gui.add(fm, "radius").min(1).step(1));
+        controlers.push(gui.add(fm, "basewidth").min(0).step(0.1));
+        controlers.push(gui.add(fm, "randomwidth").min(0).step(0.1));
+        controlers.push(gui.add(fm, "baselength").min(0).step(0.5));
+        controlers.push(gui.add(fm, "randomlength").min(0).step(0.5));
+        for(var i in controlers){
+            controlers[i].onChange(function(){
+                layer.rem(me);
+                world.DestroyBody(me.physics());
+                me = new Fluzzy({color:pfm.color, body:pfm.body, eyes:pfm.eyes, mouth:pfm.mouth, size:pfm.size,
+                    eyessize: pfm.eyessize, mouthsize: pfm.mouthsize,
+                    eyesposx: pfm.eyesposx, eyesposy: pfm.eyesposy, mouthposx: pfm.mouthposx, mouthposy: pfm.mouthposy,
+                    hairs:layers}).moveTo(200,100).physics();
+                me.physics().SetUserData({"me":true})
+                layer.add(me);
+
+            })
+        }
+    }
+    muu.whenReady(function(){
+    fondo.add(new Rect(800,600).fill("rgb(100, 200, 255)").moveTo(400,300));
+    fondo.add(new Rect().fill("rgb(10,250,90)").size(600,10).moveTo(400,500).physics("static"))
+    fondo.add(new Rect().fill("rgb(10,250,90)").size(200,10).moveTo(600,450).rotation(-30*6.283/360).physics("static"))
+    fondo.add(new Rect().fill("rgb(10,250,90)").size(200,10).moveTo(100,450).rotation(30*6.283/360).physics("static"))
+    fondo.add(new Rect().fill("rgb(10,250,90)").size(10,400).moveTo(30,250).rotation(-10*6.283/360).physics("static"))
+    fondo.add(new Rect().fill("rgb(10,250,90)").size(10,400).moveTo(700,250).rotation(10*6.283/360).physics("static"))
+    fondo.add(new Circle(50).fill("rgb(100,150,90)").moveTo(400,300).physics("static"))
+    layer.add(new Circle(40).fill("rgb(100,150,90)").moveTo(600,300).physics())
+        me = new Fluzzy({color:"#a25016", body:pfm.body, eyes:pfm.eyes, mouth:pfm.mouth, size:pfm.size,
+                    eyessize: pfm.eyessize, mouthsize: pfm.mouthsize,
+            eyesposx: pfm.eyesposx, eyesposy: pfm.eyesposy, mouthposx: pfm.mouthposx, mouthposy: pfm.mouthposy,
+            hairs:[
+            {hairs: 50, displ:{x:0, y:0}, radius:30, bw:2, rw:1, bl:15, rl:15}
+        ]}).moveTo(200,100).physics();
+        layer.add(me);
+    requestAnimationFrame(render);
+    fondo.render();
+
+    });
+    world.SetContactListener({BeginContact:function(cont){
+      var userData = cont.GetFixtureA().GetBody().GetUserData();
+      if(userData) if(userData.me) contact = true;
+      userData = cont.GetFixtureB().GetBody().GetUserData();
+      if(userData) if(userData.me) contact = true;
+
+    }, EndContact:function(cont){
+      var userData = cont.GetFixtureA().GetBody().GetUserData();
+      if(userData) if(userData.me) contact = false;
+      userData = cont.GetFixtureB().GetBody().GetUserData();
+      if(userData) if(userData.me) contact = false;
+
+    }, PreSolve:function(){}, PostSolve:function(){}})
+
+    var lt, nt = 1000; // Last time
+    function render(t){
+    var dt = lt? t - lt: t;
+    lt = t;
+
+    if(left) me.physics().ApplyTorque(-.1);
+    if (right) me.physics().ApplyTorque(.1)
+    if (up && contact) me.physics().m_linearVelocity.y = -575;
+    world.Step(dt, 2, 5);
+      me.step(i);
+      muu.render();
+      stats.update();
+      requestAnimationFrame(render);
+    }
+}
+</script>
+</body>
